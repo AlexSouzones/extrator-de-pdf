@@ -2,13 +2,20 @@ from PySide6.QtWidgets import QApplication, QMainWindow, QPushButton, QFileDialo
 from PySide6.QtGui import QIcon
 from PySide6.QtCore import Qt
 from PySide6.QtCore import Qt, QTimer
-from datetime import datetime
+import json
 import terminal
 import extrator
+import planilha as excel_core
 
 estilo_button = 'font-size: 30px;'
-hora_atual = datetime.now()
-hora_atual = hora_atual.strftime("%H:%M:%S")
+caminho_json = "assets/json/pastas.json"
+planilhas = ""
+projetos = ""
+with open(caminho_json, 'r') as arquivo:
+    dados = json.load(arquivo)
+    projetos = dados["projetos"]
+    planilha = dados["planilha"]
+
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -35,11 +42,11 @@ class MainWindow(QMainWindow):
         self.setGeometry(100, 100, 500, 300)
         self.setWindowTitle('Extração de projetos - AV2')
 
-        caminho_projetos = QLabel("extração de AV2/AV2", self)
+        caminho_projetos = QLabel(projetos, self)
         caminho_projetos.setStyleSheet("border: 1px solid black;")
         caminho_projetos.setGeometry(50, 400, 400, 50)
 
-        caminho_planilha = QLabel("extração de AV2/planilhas", self)
+        caminho_planilha = QLabel(planilha, self)
         caminho_planilha.setStyleSheet("border: 1px solid black;")
         caminho_planilha.setGeometry(500, 400, 400, 50)
 
@@ -78,51 +85,49 @@ class MainWindow(QMainWindow):
         folder_path = QFileDialog.getExistingDirectory(self, "Selecionar Pasta Dos Projetos", options=options)
 
         if folder_path:
-            print(f"Pasta selecionada: {folder_path}")
             self.caminho_projetos_label.setText(folder_path)
+            with open(caminho_json, 'r') as arquivo:
+                dados = json.load(arquivo)
+
+            dados['projetos'] = f'{self.caminho_projetos_label.text()}'
+            with open(caminho_json, 'w') as arquivo:
+                json.dump(dados, arquivo, indent=2)
 
     def selecionar_pasta_planilha(self):
         options = QFileDialog.Options()
         options |= QFileDialog.ShowDirsOnly
-
-        # Diálogo para seleção de pasta
         folder_path = QFileDialog.getExistingDirectory(self, "Selecionar Pasta Dos Projetos", options=options)
 
         if folder_path:
-            print(f"Pasta selecionada: {folder_path}")
             self.caminho_planilhas_label.setText(folder_path)
+            with open(caminho_json, 'r') as arquivo:
+                dados = json.load(arquivo)
+
+            dados['planilha'] = f'{self.caminho_planilhas_label.text()}'
+            with open(caminho_json, 'w') as arquivo:
+                json.dump(dados, arquivo, indent=2)
 
 
     def extrair_dados(self):
         verificar_planilha = extrator.verificar_caminho(self.caminho_planilhas_label.text())
-        self.texto_log.setText(terminal.app_logs(f"PLANILHA: {verificar_planilha[1]} {hora_atual}"))
+        terminal.app_logs(f"{verificar_planilha[1]} PLANILHAS.", self.texto_log)
         verificar_projeto = extrator.verificar_caminho(self.caminho_projetos_label.text())
-        self.texto_log.setText(terminal.app_logs(f"PROJETO: {verificar_projeto[1]} {hora_atual}"))
+        terminal.app_logs(f"{verificar_projeto[1]} PROJETOS.", self.texto_log)
+
+        if verificar_projeto[0] and verificar_planilha[0]:
+            terminal.app_logs(f"Criando planilha...",  self.texto_log)
+            excel_core.criar_planilha(self.caminho_planilhas_label.text())
+            terminal.app_logs(f"Contabilizando projetos...",  self.texto_log)
+            self.projetos = extrator.catalogar_projetos(self.caminho_projetos_label.text())
+            terminal.app_logs(f"Total de arquivos: {len(self.projetos)}",   self.texto_log)
+            terminal.app_logs(f"Iniciando extração . . .",   self.texto_log)
+            extrator.carregar_projetos(self.projetos, self.texto_log)
+            terminal.app_logs(f"extração finalizada!",   self.texto_log)
       
-    # def start_progress(self):
-    #     # Configurar o temporizador para atualizar a barra de progresso a cada 100 ms
-    #     self.timer = QTimer(self)
-    #     self.timer.timeout.connect(self.update_progress)
-    #     self.timer.start(100)
-
-    def update_progress(self):
-        # Atualizar o valor da barra de progresso
-        current_value = self.progress_bar.value()
-        new_value = current_value + 1
-        self.texto_log.setText(terminal.app_logs(new_value))
-
-        if new_value > 100:
-            new_value = 0  # Reiniciar quando atingir 100%
-
-        self.progress_bar.setValue(new_value)
             
 
 if __name__ == '__main__':
     app = QApplication([])
     window = MainWindow()
-    window.progress_bar.move(1100, 800)
-    window.progress_bar.setFixedHeight(50)
-    window.progress_bar.setFixedWidth(680)
-    window.progress_bar.setStyleSheet("border-radius: 15px; border: 2px solid black;")
     window.show()
     app.exec()
