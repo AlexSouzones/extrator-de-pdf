@@ -3,6 +3,8 @@ from datetime import datetime
 import planilha
 import fitz
 import terminal
+import time
+
 
 
 hora_atual = datetime.now()
@@ -10,7 +12,7 @@ hora_atual = hora_atual.strftime("%H:%M")
 
 
 def verificar_projeto(arquivo):
-    doc = fitz.open(arquivo)  # Abre o arquivo PDF
+    doc = fitz.open(arquivo)
     text = ""
     for pagina in doc.pages():
         text += pagina.get_text()
@@ -31,33 +33,55 @@ def catalogar_projetos(caminho):
     if os.path.isdir(caminho):
       arquivos = os.listdir(caminho)
       for arquivo in arquivos:
-        if verificar_projeto(f"{caminho}/{arquivo}"):
-          arquivos_corretos.append(f"{caminho}/{arquivo}")
+        try:
+          if ".pdf" in arquivo[-4:].lower():
+            if verificar_projeto(f"{caminho}/{arquivo}"):
+              arquivos_corretos.append(f"{caminho}/{arquivo}")
+        except:
+           print(f"\033[91mERRO: {arquivo} está corrompido\033[0m")
     return arquivos_corretos
 
 
-def carregar_projetos(caminhos, label):
+def carregar_projetos(caminhos, label, pj_path):
   qtd_projetos = len(caminhos)
   pjt_atual = 0
   for caminho in caminhos:
+    codigo = caminho[caminho.find(" Extensão_")+len(" Extensão_"):caminho.find("_tentativa")]
+    print(codigo)
     pjt_atual += 1
-    doc = fitz.open(caminho)  # Abre o arquivo PDF
+    doc = fitz.open(caminho)
     text = ""
     for pagina in doc.pages():
-        text += pagina.get_text()
+        text += f"{pagina.get_text().strip()}"
     terminal.app_logs(f"extraindo: {pjt_atual}/{qtd_projetos}", label)
-    extrair_info(text)
+    extrair_info(text, codigo)
 
 
-def extrair_info(texto):
+def extrair_info(texto, codigo):
 
+
+  texto = texto.replace("\n", " ").replace("  ", " ").replace("    ", " ").strip()
+
+  projeto = ""
+
+  if "Professor responsável:" in texto:
+    projeto = texto[texto.find('Título do projeto:')+len('Título do projeto:'):texto.find('Professor responsável:')].replace("\n", " ").replace("  ", " ").strip()
+  elif "Professor responsável:" in texto:
+     projeto = texto[texto.find('Título do projeto:')+len('Título do projeto:'):texto.find('Professor responsável:')].replace("\n", " ").replace("  ", " ").strip()
+  else:
+     projeto = texto[texto.find('Título do projeto:')+len('Título do projeto:'):texto.find('Professores responsáveis:')].replace("\n", " ").replace("  ", " ").strip()
+
+  if "RELATÓRIO DE INTERVENÇÃO (DISCIPLINA DE EXTENSÃO – DISCENTE) " in texto and "00" in texto:
+    header = texto[texto.find("RELATÓRIO DE INTERVENÇÃO (DISCIPLINA DE EXTENSÃO – DISCENTE) "):texto.find("00")+2]
+    texto = texto.replace(header, "").replace("1. Identificação do projeto discente", "").replace("2. Resumo de indicadores", "")
+
+    pagina = texto.count("Página")
+    for simbol in range(0, pagina-1):
+       local =  texto[texto.find("Página"):texto.find("Página")+14]
+       texto = texto.replace(local, "")
   
-  dados_projeto = texto[texto.find("DADOS DO PROJETO DISCENTE")+len('DADOS DO PROJETO DISCENTE'):texto.find('LOCAL, DATA E HORÁRIO:')]
-  projeto = dados_projeto[dados_projeto.find('NOME DO PROJETO:')+len('NOME DO PROJETO:'):dados_projeto.find('OBJETIVO:')].replace("\n", " ").replace("  ", " ").strip()
-  texto = texto.replace("\n", " ").replace("  ", " ")
   quantidade_de_alunos = texto[texto.find('Total de alunos no projeto')+len('Total de alunos no projeto'):texto.find('Número de assessoramentos com o professor')].strip()
   
-
   assessoramentos = texto[
     texto.find('Número de assessoramentos com o professor')+
     len('Número de assessoramentos com o professor'):
@@ -130,13 +154,10 @@ def extrair_info(texto):
     texto.find("""Houve arrecadação de donativos? Se sim, quantos?""")+
     len("""Houve arrecadação de donativos? Se sim, quantos?"""):
     texto.find("""Houve arrecadação de donativos? Se sim, quantos?""")+
-    len("""Houve arrecadação de donativos? Se sim, quantos?""")+
-    4
+    len("""Houve arrecadação de donativos? Se sim, quantos?""")+4
     ].strip().replace("\n", "")
-  
-  # print(f"{projeto}\n{quantidade_de_alunos}\n{assessoramentos}\n{atividades_realizadas}\n{entidades_grupos_beneficiados}\n{publico_total}\n"
-  #       f"{numero_atendimentos}\n{parcerias_profi_fora}\n{parcerias_empresas_entidades}\n{parceria_setor_publico}\n{parceria_terceiro_setor}\n"
-  #       f"{material_didatico}\n{arrecadacao_donativos}")
-  planilha.preencher_planilha(projeto, quantidade_de_alunos, assessoramentos, atividades_realizadas, entidades_grupos_beneficiados, publico_total, 
+
+
+  planilha.preencher_planilha(codigo, projeto, quantidade_de_alunos, assessoramentos, atividades_realizadas, entidades_grupos_beneficiados, publico_total, 
                               numero_atendimentos, parcerias_profi_fora, parcerias_empresas_entidades, parceria_setor_publico, parceria_terceiro_setor,
                               material_didatico, arrecadacao_donativos)

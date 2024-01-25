@@ -54,7 +54,6 @@ class MainWindow(QMainWindow):
         self.caminho_projetos_label = caminho_projetos
         self.caminho_planilhas_label = caminho_planilha
 
-        # Botão para abrir o diálogo de seleção de pasta
         btn_select_path_project = QPushButton('Selecionar Pasta de Projetos', self)
         btn_select_path_project.setGeometry(50, 500, 400, 50)
         btn_select_path_project.clicked.connect(self.selecionar_pasta_projeto)
@@ -81,7 +80,6 @@ class MainWindow(QMainWindow):
         options = QFileDialog.Options()
         options |= QFileDialog.ShowDirsOnly
 
-        # Diálogo para seleção de pasta
         folder_path = QFileDialog.getExistingDirectory(self, "Selecionar Pasta Dos Projetos", options=options)
 
         if folder_path:
@@ -109,6 +107,7 @@ class MainWindow(QMainWindow):
 
 
     def extrair_dados(self):
+        self.texto_log.setText("")
         verificar_planilha = extrator.verificar_caminho(self.caminho_planilhas_label.text())
         terminal.app_logs(f"{verificar_planilha[1]} PLANILHAS.", self.texto_log)
         verificar_projeto = extrator.verificar_caminho(self.caminho_projetos_label.text())
@@ -121,7 +120,7 @@ class MainWindow(QMainWindow):
             self.projetos = extrator.catalogar_projetos(self.caminho_projetos_label.text())
             terminal.app_logs(f"Total de arquivos: {len(self.projetos)}",   self.texto_log)
             terminal.app_logs(f"Iniciando extração . . .",   self.texto_log)
-            extrator.carregar_projetos(self.projetos, self.texto_log)
+            extrator.carregar_projetos(self.projetos, self.texto_log, self.caminho_projetos_label.text())
             terminal.app_logs(f"extração finalizada!",   self.texto_log)
       
             
